@@ -1,0 +1,485 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  MANAGER
+  ADM
+  COORDINATOR
+  CLEANER
+}
+
+enum PropertyStatus {
+  ACTIVE
+  BLOCKED
+  MAINTENANCE
+}
+
+enum ReservationStatus {
+  UPCOMING
+  ACTIVE
+  CHECKED_OUT
+  CANCELLED
+}
+
+enum CleaningJobStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  PARTIAL
+  STAND_BY
+  BLOCKED
+  DONE
+  CANCELLED
+}
+
+enum UrgencyLevel {
+  RED
+  YELLOW
+  GREEN
+}
+
+enum AssignmentStatus {
+  NOTIFIED
+  IN_PROGRESS
+  PAUSED
+  RESUMED
+  PARTIAL
+  DONE
+  ABANDONED
+}
+
+enum IncidentType {
+  BROKEN
+  STAINED
+  INFRASTRUCTURE
+  LOST_ITEM
+}
+
+enum TicketStatus {
+  OPEN
+  PENDING
+  PENDING_UNTIL
+  RESOLVED
+  WONT_FIX
+  CLOSED
+}
+
+enum AvailabilityType {
+  FULL_DAY
+  TIME_RANGE
+  SPECIFIC_DATE
+}
+
+enum CandidacyStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum TransportType {
+  UBER
+  NOVENTA_E_NOVE
+  ONIBUS
+  METRO
+  OUTRO
+}
+
+enum TransportStatus {
+  OK
+  PENDING_REVIEW
+  CONTESTED
+  CONTEST_RESOLVED
+}
+
+enum OcrConfidence {
+  HIGH
+  LOW
+}
+
+enum AmountSource {
+  OCR_AUTO
+  ADM_MANUAL
+}
+
+enum ReimbursementStatus {
+  OPEN
+  PAID
+}
+
+enum NotificationChannel {
+  PUSH
+  WHATSAPP
+  EMAIL
+}
+
+enum NotificationStatus {
+  SENT
+  DELIVERED
+  OPENED
+  FAILED
+}
+
+enum JobEventType {
+  CREATED
+  ASSIGNED
+  STARTED
+  DOOR_KNOCKED
+  GUEST_PRESENT
+  PAUSED
+  RESUMED
+  COMPLETED
+  PARTIAL
+  STAND_BY
+  RELOCATION_SUGGESTED
+  RELOCATION_CONFIRMED
+  RELOCATION_DECISION
+  CANDIDACY_SUBMITTED
+  CANDIDACY_APPROVED
+  CANDIDACY_REJECTED
+  CANCELLED
+  BLOCKED
+  UNBLOCKED
+}
+
+// ── Models ───────────────────────────────────────────────────────────────────
+
+model Tenant {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users            User[]
+  condominiums     Condominium[]
+  inviteTokens     InviteToken[]
+  cleaningJobs     CleaningJob[]
+  reimbursements   ReimbursementPeriod[]
+  maintenanceTickets MaintenanceTicket[]
+}
+
+model User {
+  id              String   @id @default(cuid())
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  role            Role
+  name            String
+  email           String?
+  phone           String
+  cpf             String?
+  rg              String?
+  passwordHash    String
+  avatarUrl       String?
+  fcmToken        String?
+  whatsappNumber  String?
+  streakCount     Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  inviteTokensCreated InviteToken[] @relation("CreatedBy")
+  assignments         CleaningAssignment[]
+  availability        CleanerAvailability[]
+  candidacies         CandidacyRequest[]
+  transportRecords    TransportRecord[]
+  notificationLogs    NotificationLog[]
+
+  @@unique([tenantId, email])
+  @@unique([tenantId, phone])
+  @@index([tenantId, role])
+}
+
+model InviteToken {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  token       String    @unique @default(cuid())
+  inviteLink  String    @unique
+  role        Role      @default(CLEANER)
+  createdById String
+  createdBy   User      @relation("CreatedBy", fields: [createdById], references: [id])
+  usedAt      DateTime?
+  usedById    String?
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+
+  @@index([tenantId])
+}
+
+model Condominium {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  name       String
+  address    String
+  latitude   Decimal  @db.Decimal(10, 7)
+  longitude  Decimal  @db.Decimal(10, 7)
+  icalUrl    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  properties Property[]
+
+  @@index([tenantId])
+}
+
+model Property {
+  id             String         @id @default(cuid())
+  tenantId       String
+  condominiumId  String
+  condominium    Condominium    @relation(fields: [condominiumId], references: [id])
+  unitNumber     String
+  status         PropertyStatus @default(ACTIVE)
+  blockedReason  String?
+  blockedUntil   DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  reservations  Reservation[]
+  cleaningJobs  CleaningJob[]
+  maintenanceTickets MaintenanceTicket[]
+
+  @@unique([condominiumId, unitNumber])
+  @@index([tenantId, status])
+}
+
+model Reservation {
+  id          String            @id @default(cuid())
+  tenantId    String
+  propertyId  String
+  property    Property          @relation(fields: [propertyId], references: [id])
+  guestName   String?
+  checkIn     DateTime
+  checkOut    DateTime
+  status      ReservationStatus @default(UPCOMING)
+  icalUid     String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  cleaningJob CleaningJob?
+
+  @@index([tenantId, propertyId])
+  @@index([tenantId, status])
+}
+
+model CleaningJob {
+  id              String            @id @default(cuid())
+  tenantId        String
+  tenant          Tenant            @relation(fields: [tenantId], references: [id])
+  propertyId      String
+  property        Property          @relation(fields: [propertyId], references: [id])
+  reservationId   String?           @unique
+  reservation     Reservation?      @relation(fields: [reservationId], references: [id])
+  status          CleaningJobStatus @default(PENDING)
+  urgencyLevel    UrgencyLevel      @default(GREEN)
+  urgencyOverride Boolean           @default(false)
+  pendingReason   String?
+  scheduledDate   DateTime
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  assignments CleaningAssignment[]
+  incidents   CleaningIncident[]
+  report      CleaningReport?
+  eventLogs   JobEventLog[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, urgencyLevel])
+  @@index([tenantId, scheduledDate])
+}
+
+model CleaningAssignment {
+  id                   String           @id @default(cuid())
+  tenantId             String
+  jobId                String
+  job                  CleaningJob      @relation(fields: [jobId], references: [id])
+  cleanerId            String
+  cleaner              User             @relation(fields: [cleanerId], references: [id])
+  status               AssignmentStatus @default(NOTIFIED)
+  isJoint              Boolean          @default(false)
+  doorKnockedAt        DateTime?
+  startedAt            DateTime?
+  pausedAt             DateTime?
+  resumedAt            DateTime?
+  completedAt          DateTime?
+  pausedElapsedSeconds Int              @default(0)
+  relocationReason     String?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  @@index([tenantId, cleanerId])
+  @@index([tenantId, jobId])
+  @@index([tenantId, status])
+}
+
+model CleaningReport {
+  id               String      @id @default(cuid())
+  tenantId         String
+  jobId            String      @unique
+  job              CleaningJob @relation(fields: [jobId], references: [id])
+  aptConditionFound Int        // 1-5 stars
+  dirtLevel        Int         // 1-5
+  finishPhotoUrl   String
+  finishVideoUrl   String?
+  needsService     Boolean     @default(false)
+  serviceUrgency   String?
+  createdAt        DateTime    @default(now())
+
+  @@index([tenantId])
+}
+
+model CleaningIncident {
+  id          String       @id @default(cuid())
+  tenantId    String
+  jobId       String
+  job         CleaningJob  @relation(fields: [jobId], references: [id])
+  type        IncidentType
+  description String
+  photoUrl    String?
+  createdAt   DateTime     @default(now())
+
+  maintenanceTicket MaintenanceTicket?
+
+  @@index([tenantId, jobId])
+}
+
+model MaintenanceTicket {
+  id              String       @id @default(cuid())
+  tenantId        String
+  tenant          Tenant       @relation(fields: [tenantId], references: [id])
+  propertyId      String
+  property        Property     @relation(fields: [propertyId], references: [id])
+  incidentId      String?      @unique
+  incident        CleaningIncident? @relation(fields: [incidentId], references: [id])
+  status          TicketStatus @default(OPEN)
+  blocksProperty  Boolean      @default(false)
+  description     String
+  pendingUntil    DateTime?
+  whatsappSentAt  DateTime?
+  whatsappResponse String?
+  resolvedAt      DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([tenantId, status])
+  @@index([tenantId, propertyId])
+}
+
+model CleanerAvailability {
+  id         String           @id @default(cuid())
+  tenantId   String
+  cleanerId  String
+  cleaner    User             @relation(fields: [cleanerId], references: [id])
+  type       AvailabilityType
+  weekday    Int?             // 0=Sun 6=Sat, null for SPECIFIC_DATE
+  specificDate DateTime?
+  startTime  String?          // "HH:MM"
+  endTime    String?          // "HH:MM"
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@index([tenantId, cleanerId])
+}
+
+model CandidacyRequest {
+  id         String          @id @default(cuid())
+  tenantId   String
+  jobId      String
+  cleanerId  String
+  cleaner    User            @relation(fields: [cleanerId], references: [id])
+  status     CandidacyStatus @default(PENDING)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@unique([jobId, cleanerId])
+  @@index([tenantId, jobId])
+}
+
+model TransportRecord {
+  id               String          @id @default(cuid())
+  tenantId         String
+  cleanerId        String
+  cleaner          User            @relation(fields: [cleanerId], references: [id])
+  transportType    TransportType
+  amount           Decimal         @db.Decimal(10, 2)
+  receiptUrl       String?
+  originName       String
+  originLat        Decimal         @db.Decimal(10, 7)
+  originLng        Decimal         @db.Decimal(10, 7)
+  destinationName  String
+  destinationLat   Decimal         @db.Decimal(10, 7)
+  destinationLng   Decimal         @db.Decimal(10, 7)
+  distanceKm       Decimal         @db.Decimal(6, 2)
+  status           TransportStatus @default(PENDING_REVIEW)
+  ocrRawResponse   Json?
+  ocrConfidence    OcrConfidence?
+  amountSource     AmountSource    @default(OCR_AUTO)
+  monthRef         String          // "YYYY-MM"
+  reimbursementId  String?
+  reimbursement    ReimbursementPeriod? @relation(fields: [reimbursementId], references: [id])
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([tenantId, cleanerId])
+  @@index([tenantId, monthRef])
+}
+
+model ReimbursementPeriod {
+  id           String              @id @default(cuid())
+  tenantId     String
+  tenant       Tenant              @relation(fields: [tenantId], references: [id])
+  cleanerId    String
+  monthRef     String              // "YYYY-MM"
+  totalAmount  Decimal             @db.Decimal(10, 2) @default(0)
+  ridesCount   Int                 @default(0)
+  status       ReimbursementStatus @default(OPEN)
+  paidById     String?
+  paidAt       DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  records TransportRecord[]
+
+  @@unique([tenantId, cleanerId, monthRef])
+  @@index([tenantId, status])
+}
+
+model NotificationLog {
+  id         String             @id @default(cuid())
+  tenantId   String
+  userId     String
+  user       User               @relation(fields: [userId], references: [id])
+  channel    NotificationChannel
+  title      String
+  body       String
+  data       Json?
+  status     NotificationStatus @default(SENT)
+  sentAt     DateTime           @default(now())
+  deliveredAt DateTime?
+  openedAt   DateTime?
+
+  @@index([tenantId, userId])
+  @@index([tenantId, status])
+}
+
+model JobEventLog {
+  id         String       @id @default(cuid())
+  tenantId   String
+  jobId      String
+  job        CleaningJob  @relation(fields: [jobId], references: [id])
+  eventType  JobEventType
+  actorId    String?
+  payload    Json?
+  createdAt  DateTime     @default(now())
+
+  @@index([tenantId, jobId])
+}
