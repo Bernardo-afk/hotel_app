@@ -14,6 +14,7 @@ import { candidaciesRouter } from './modules/candidacies/candidacies.router';
 import { routeSuggestionRouter } from './modules/route-suggestion/route-suggestion.router';
 import { ocrRouter } from './modules/ocr/ocr.router';
 import { transportRouter } from './modules/transport/transport.router';
+import { reportsRouter } from './modules/reports/reports.router';
 
 export function createApp() {
   const app = express();
@@ -37,6 +38,8 @@ export function createApp() {
 
   app.use('/ocr', ocrRouter);
   app.use('/transport', transportRouter);
+
+  app.use('/', reportsRouter);
 
   // modules registered in later tasks
 
