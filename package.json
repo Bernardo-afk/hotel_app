@@ -1,0 +1,9 @@
+{
+  "name": "stay",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev:backend": "npm run dev -w backend",
+    "test:backend": "npm test -w backend"
+  }
+}
