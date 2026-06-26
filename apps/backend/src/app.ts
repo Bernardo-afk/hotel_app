@@ -8,6 +8,7 @@ import { airbnbSyncRouter } from './modules/airbnb-sync/airbnb-sync.router';
 import { reservationsRouter } from './modules/reservations/reservations.router';
 import { cleaningJobsRouter } from './modules/cleaning-jobs/cleaning-jobs.router';
 import { availabilityRouter } from './modules/availability/availability.router';
+import { assignmentsRouter } from './modules/assignments/assignments.router';
 
 export function createApp() {
   const app = express();
@@ -24,6 +25,7 @@ export function createApp() {
   app.use('/reservations', reservationsRouter);
   app.use('/cleaning-jobs', cleaningJobsRouter);
   app.use('/availability', availabilityRouter);
+  app.use('/assignments', assignmentsRouter);
 
   // modules registered in later tasks
 
