@@ -10,6 +10,7 @@ import { cleaningJobsRouter } from './modules/cleaning-jobs/cleaning-jobs.router
 import { availabilityRouter } from './modules/availability/availability.router';
 import { assignmentsRouter } from './modules/assignments/assignments.router';
 import { relocationsRouter } from './modules/relocations/relocations.router';
+import { candidaciesRouter } from './modules/candidacies/candidacies.router';
 
 export function createApp() {
   const app = express();
@@ -28,6 +29,7 @@ export function createApp() {
   app.use('/availability', availabilityRouter);
   app.use('/assignments', assignmentsRouter);
   app.use('/relocations', relocationsRouter);
+  app.use('/candidacies', candidaciesRouter);
 
   // modules registered in later tasks
 
