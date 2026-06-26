@@ -12,6 +12,7 @@ import { assignmentsRouter } from './modules/assignments/assignments.router';
 import { relocationsRouter } from './modules/relocations/relocations.router';
 import { candidaciesRouter } from './modules/candidacies/candidacies.router';
 import { routeSuggestionRouter } from './modules/route-suggestion/route-suggestion.router';
+import { ocrRouter } from './modules/ocr/ocr.router';
 
 export function createApp() {
   const app = express();
@@ -32,6 +33,8 @@ export function createApp() {
   app.use('/relocations', relocationsRouter);
   app.use('/candidacies', candidaciesRouter);
   app.use('/routes', routeSuggestionRouter);
+
+  app.use('/ocr', ocrRouter);
 
   // modules registered in later tasks
 
