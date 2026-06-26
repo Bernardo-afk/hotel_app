@@ -13,7 +13,7 @@ const auth = [authMiddleware, tenantMiddleware];
 cleaningJobsRouter.get(
   '/',
   ...auth,
-  requireRole('COORDINATOR', 'ADM', 'MANAGER', 'SUPER_ADMIN'),
+  requireRole('COORDINATOR', 'ADM', 'MANAGER', 'SUPER_ADMIN', 'CLEANER'),
   async (req, res, next) => {
     try {
       const { urgency, status, propertyId } = req.query as {
@@ -25,6 +25,7 @@ cleaningJobsRouter.get(
         urgency: urgency as svc.ListFilters['urgency'],
         status: status as svc.ListFilters['status'],
         propertyId,
+        cleanerId: req.user.role === 'CLEANER' ? req.user.id : undefined,
       });
       res.json(jobs);
     } catch (e) {
@@ -36,7 +37,7 @@ cleaningJobsRouter.get(
 cleaningJobsRouter.get(
   '/:id',
   ...auth,
-  requireRole('COORDINATOR', 'ADM', 'MANAGER', 'SUPER_ADMIN'),
+  requireRole('COORDINATOR', 'ADM', 'MANAGER', 'SUPER_ADMIN', 'CLEANER'),
   async (req, res, next) => {
     try {
       const job = await svc.getJob(req.tenantId, req.params.id);

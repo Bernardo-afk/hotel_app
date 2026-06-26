@@ -1,4 +1,4 @@
-import { CleaningJobStatus, UrgencyLevel } from '@prisma/client';
+import { CleaningJobStatus, JobEventType, UrgencyLevel } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../errors/AppError';
 import { computeUrgency } from '../urgency-engine/urgency.service';
@@ -8,13 +8,18 @@ export interface ListFilters {
   status?: CleaningJobStatus;
   propertyId?: string;
   urgency?: UrgencyLevel;
+  cleanerId?: string;
 }
 
 export async function listJobs(tenantId: string, filters: ListFilters = {}) {
-  const { urgency, ...rest } = filters;
+  const { urgency, cleanerId, ...rest } = filters;
 
   const jobs = await prisma.cleaningJob.findMany({
-    where: { tenantId, ...rest },
+    where: {
+      tenantId,
+      ...rest,
+      ...(cleanerId ? { assignments: { some: { cleanerId } } } : {}),
+    },
     include: {
       property: { include: { condominium: true } },
       assignments: true,
@@ -69,9 +74,20 @@ export async function transitionJob(
 
   validateTransition(job.status, newStatus);
 
-  await prisma.cleaningJob.updateMany({ where: { id, tenantId }, data: { status: newStatus } });
-  const updated = await prisma.cleaningJob.findFirst({ where: { id, tenantId } });
-  return updated;
+  return prisma.$transaction(async (tx) => {
+    // Optimistic-lock: only update if status hasn't changed since we read it
+    const result = await tx.cleaningJob.updateMany({
+      where: { id, tenantId, status: job.status },
+      data: { status: newStatus },
+    });
+    if (result.count === 0) throw new AppError('Concurrent status change', 409);
+
+    await tx.jobEventLog.create({
+      data: { tenantId, jobId: id, eventType: newStatus as unknown as JobEventType, actorId },
+    });
+
+    return tx.cleaningJob.findFirst({ where: { id, tenantId } });
+  });
 }
 
 export async function recalcUrgency(tenantId: string) {

@@ -5,20 +5,28 @@ import { prisma } from '../../lib/prisma';
 import { validateTransition } from './job-status-machine';
 import { AppError } from '../../errors/AppError';
 
-jest.mock('../../lib/prisma', () => ({
-  prisma: {
-    cleaningJob: {
-      findMany: jest.fn(),
-      findFirst: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      updateMany: jest.fn(),
+jest.mock('../../lib/prisma', () => {
+  const cleaningJob = {
+    findMany: jest.fn(),
+    findFirst: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    updateMany: jest.fn(),
+  };
+  const jobEventLog = {
+    create: jest.fn(),
+  };
+  return {
+    prisma: {
+      cleaningJob,
+      property: { findFirst: jest.fn() },
+      jobEventLog,
+      $transaction: jest.fn().mockImplementation(async (fn: (tx: unknown) => unknown) =>
+        fn({ cleaningJob, jobEventLog }),
+      ),
     },
-    property: {
-      findFirst: jest.fn(),
-    },
-  },
-}));
+  };
+});
 
 const app = createApp();
 
