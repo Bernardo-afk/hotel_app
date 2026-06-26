@@ -1,7 +1,9 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "ts-node-dev --respawn src/server.ts",
     "build": "tsc",
@@ -17,6 +19,7 @@
     "@prisma/client": "^5.15.0",
     "axios": "^1.7.2",
     "bcryptjs": "^2.4.3",
+    "dotenv": "^17.4.2",
     "express": "^4.19.2",
     "firebase-admin": "^12.2.0",
     "jsonwebtoken": "^9.0.2",
