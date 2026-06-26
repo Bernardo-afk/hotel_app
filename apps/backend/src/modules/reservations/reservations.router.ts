@@ -82,10 +82,10 @@ reservationsRouter.patch(
   },
 );
 
-reservationsRouter.delete(
-  '/:id',
+reservationsRouter.patch(
+  '/:id/cancel',
   ...auth,
-  requireRole('ADM', 'MANAGER', 'SUPER_ADMIN'),
+  requireRole('ADM', 'MANAGER', 'COORDINATOR', 'SUPER_ADMIN'),
   async (req, res, next) => {
     try {
       res.json(await svc.cancelReservation(req.tenantId, req.params.id));

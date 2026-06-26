@@ -93,7 +93,8 @@ export async function updateReservation(
   if (data.guestName !== undefined) updateData.guestName = data.guestName;
   if (data.status !== undefined) updateData.status = data.status;
 
-  return prisma.reservation.update({ where: { id }, data: updateData });
+  await prisma.reservation.updateMany({ where: { id, tenantId }, data: updateData });
+  return prisma.reservation.findFirst({ where: { id, tenantId } });
 }
 
 export async function cancelReservation(tenantId: string, id: string) {
@@ -109,8 +110,9 @@ export async function cancelReservation(tenantId: string, id: string) {
     data: { status: 'CANCELLED' },
   });
 
-  return prisma.reservation.update({
-    where: { id },
+  await prisma.reservation.updateMany({
+    where: { id, tenantId },
     data: { status: 'CANCELLED' },
   });
+  return prisma.reservation.findFirst({ where: { id, tenantId } });
 }

@@ -10,6 +10,7 @@ jest.mock('../../lib/prisma', () => ({
       findFirst: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
     },
     cleaningJob: {
       updateMany: jest.fn(),
@@ -144,8 +145,10 @@ test('POST /reservations missing fields → 422', async () => {
 
 test('PATCH /reservations/:id updates reservation', async () => {
   const updated = { ...mockReservation, guestName: 'New Guest' };
-  (prisma.reservation.findFirst as jest.Mock).mockResolvedValue(mockReservation);
-  (prisma.reservation.update as jest.Mock).mockResolvedValue(updated);
+  (prisma.reservation.findFirst as jest.Mock)
+    .mockResolvedValueOnce(mockReservation)
+    .mockResolvedValueOnce(updated);
+  (prisma.reservation.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
 
   const res = await request(app)
     .patch(`/reservations/${resId}`)
@@ -155,16 +158,16 @@ test('PATCH /reservations/:id updates reservation', async () => {
   expect(res.status).toBe(200);
 });
 
-test('DELETE /reservations/:id cancels reservation and cascades to CleaningJobs', async () => {
-  (prisma.reservation.findFirst as jest.Mock).mockResolvedValue(mockReservation);
+test('PATCH /reservations/:id/cancel cancels reservation and cascades to CleaningJobs', async () => {
+  const cancelled = { ...mockReservation, status: 'CANCELLED' };
+  (prisma.reservation.findFirst as jest.Mock)
+    .mockResolvedValueOnce(mockReservation)
+    .mockResolvedValueOnce(cancelled);
   (prisma.cleaningJob.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
-  (prisma.reservation.update as jest.Mock).mockResolvedValue({
-    ...mockReservation,
-    status: 'CANCELLED',
-  });
+  (prisma.reservation.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
 
   const res = await request(app)
-    .delete(`/reservations/${resId}`)
+    .patch(`/reservations/${resId}/cancel`)
     .set('Authorization', admToken());
 
   expect(res.status).toBe(200);
@@ -182,11 +185,11 @@ test('DELETE /reservations/:id cancels reservation and cascades to CleaningJobs'
   );
 });
 
-test('DELETE /reservations/:id → 404 if not found', async () => {
+test('PATCH /reservations/:id/cancel → 404 if not found', async () => {
   (prisma.reservation.findFirst as jest.Mock).mockResolvedValue(null);
 
   const res = await request(app)
-    .delete('/reservations/nonexistent-id')
+    .patch('/reservations/nonexistent-id/cancel')
     .set('Authorization', admToken());
 
   expect(res.status).toBe(404);
