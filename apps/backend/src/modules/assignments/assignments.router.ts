@@ -6,8 +6,20 @@ import { requireRole } from '../../middleware/role-guard';
 import * as svc from './assignments.service';
 
 export const assignmentsRouter = Router();
-
 const auth = [authMiddleware, tenantMiddleware];
+
+assignmentsRouter.get(
+  '/suggest/:jobId',
+  ...auth,
+  requireRole('COORDINATOR', 'ADM', 'MANAGER', 'SUPER_ADMIN'),
+  async (req, res, next) => {
+    try {
+      res.json(await svc.suggestCleaner(req.tenantId, req.params.jobId));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
 
 assignmentsRouter.get(
   '/',
@@ -26,13 +38,15 @@ assignmentsRouter.get(
 assignmentsRouter.post(
   '/',
   ...auth,
-  requireRole('ADM', 'MANAGER', 'SUPER_ADMIN'),
+  requireRole('COORDINATOR', 'ADM', 'MANAGER', 'SUPER_ADMIN'),
   async (req, res, next) => {
     try {
-      const { jobId, cleanerId } = z
-        .object({ jobId: z.string(), cleanerId: z.string() })
+      const b = z
+        .object({ jobId: z.string(), cleanerId: z.string(), isJoint: z.boolean().optional() })
         .parse(req.body);
-      res.status(201).json(await svc.assignCleaner(req.tenantId, jobId, cleanerId));
+      res
+        .status(201)
+        .json(await svc.assignCleaner(req.tenantId, b.jobId, b.cleanerId, b.isJoint, req.user.id));
     } catch (e) {
       next(e);
     }
@@ -45,7 +59,59 @@ assignmentsRouter.delete(
   requireRole('ADM', 'MANAGER', 'SUPER_ADMIN'),
   async (req, res, next) => {
     try {
-      res.json(await svc.removeAssignment(req.tenantId, req.params.id));
+      res.json(await svc.removeAssignment(req.tenantId, req.params.id, req.user.id));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
+assignmentsRouter.post(
+  '/:id/door-knocked',
+  ...auth,
+  requireRole('CLEANER'),
+  async (req, res, next) => {
+    try {
+      res.json(await svc.doorKnocked(req.tenantId, req.params.id));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
+assignmentsRouter.post(
+  '/:id/start',
+  ...auth,
+  requireRole('CLEANER'),
+  async (req, res, next) => {
+    try {
+      res.json(await svc.startCleaning(req.tenantId, req.params.id, req.user.id));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
+assignmentsRouter.post(
+  '/:id/guest-present',
+  ...auth,
+  requireRole('CLEANER'),
+  async (req, res, next) => {
+    try {
+      res.json(await svc.guestPresent(req.tenantId, req.params.id));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
+assignmentsRouter.post(
+  '/:id/cant-finish',
+  ...auth,
+  requireRole('CLEANER'),
+  async (req, res, next) => {
+    try {
+      res.json(await svc.cantFinish(req.tenantId, req.params.id, req.user.id));
     } catch (e) {
       next(e);
     }
