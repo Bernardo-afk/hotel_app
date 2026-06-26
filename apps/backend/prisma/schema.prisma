@@ -73,11 +73,6 @@ enum TicketStatus {
   CLOSED
 }
 
-enum AvailabilityType {
-  FULL_DAY
-  TIME_RANGE
-  SPECIFIC_DATE
-}
 
 enum CandidacyStatus {
   PENDING
@@ -375,18 +370,17 @@ model MaintenanceTicket {
 }
 
 model CleanerAvailability {
-  id         String           @id @default(cuid())
+  id         String   @id @default(cuid())
   tenantId   String
   cleanerId  String
-  cleaner    User             @relation(fields: [cleanerId], references: [id])
-  type       AvailabilityType
-  weekday    Int?             // 0=Sun 6=Sat, null for SPECIFIC_DATE
-  specificDate DateTime?
-  startTime  String?          // "HH:MM"
-  endTime    String?          // "HH:MM"
-  createdAt  DateTime         @default(now())
-  updatedAt  DateTime         @updatedAt
+  cleaner    User     @relation(fields: [cleanerId], references: [id])
+  date       DateTime
+  available  Boolean  @default(true)
+  note       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
+  @@unique([cleanerId, date])
   @@index([tenantId, cleanerId])
 }
 
