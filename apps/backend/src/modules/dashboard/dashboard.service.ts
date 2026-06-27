@@ -1,4 +1,4 @@
-import { UrgencyLevel } from '@prisma/client';
+import { AssignmentStatus, CleaningJobStatus, PropertyStatus, UrgencyLevel } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import PDFDocument from 'pdfkit';
 
@@ -138,13 +138,13 @@ export async function exportPdf(
 
 export interface JobCard {
   id: string;
-  status: string;
-  urgencyLevel: string;
+  status: CleaningJobStatus;
+  urgencyLevel: UrgencyLevel;
   scheduledDate: string;
   property: {
     id: string;
     unitNumber: string;
-    status: string;
+    status: PropertyStatus;
     condominium: { id: string; name: string };
   };
   reservation: {
@@ -155,7 +155,7 @@ export interface JobCard {
   assignments: {
     id: string;
     cleanerId: string;
-    status: string;
+    status: AssignmentStatus;
     cleaner: { id: string; name: string };
   }[];
 }
@@ -167,10 +167,10 @@ export interface CleanerRow {
   isActive: boolean;
   currentAssignment: {
     assignmentId: string;
-    assignmentStatus: string;
+    assignmentStatus: AssignmentStatus;
     job: {
       id: string;
-      urgencyLevel: string;
+      urgencyLevel: UrgencyLevel;
       property: {
         unitNumber: string;
         condominium: { name: string };
@@ -265,7 +265,7 @@ export async function getCoordinatorDashboard(tenantId: string): Promise<Coordin
   };
 
   for (const job of activeJobs) {
-    const level = job.urgencyLevel as UrgencyLevel;
+    const level = job.urgencyLevel;
     jobs_by_urgency[level].push({
       id: job.id,
       status: job.status,
