@@ -53,6 +53,24 @@ assignmentsRouter.post(
   },
 );
 
+assignmentsRouter.patch(
+  '/reorder',
+  ...auth,
+  requireRole('COORDINATOR', 'ADM', 'MANAGER', 'SUPER_ADMIN'),
+  async (req, res, next) => {
+    try {
+      const b = z
+        .object({ cleaner_id: z.string(), ordered_job_ids: z.array(z.string()).min(1) })
+        .parse(req.body);
+      res.json(
+        await svc.reorderCleanerQueue(req.tenantId, b.cleaner_id, b.ordered_job_ids, req.user.id),
+      );
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
 assignmentsRouter.delete(
   '/:id',
   ...auth,

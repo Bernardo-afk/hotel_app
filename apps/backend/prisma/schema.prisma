@@ -308,6 +308,7 @@ model CleaningAssignment {
   completedAt          DateTime?
   pausedElapsedSeconds Int              @default(0)
   relocationReason     String?
+  sortOrder            Int              @default(0)
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
 

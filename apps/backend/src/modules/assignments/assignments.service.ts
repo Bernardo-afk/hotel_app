@@ -187,6 +187,76 @@ export async function guestPresent(tenantId: string, assignmentId: string) {
   return { notified: coordinators.length };
 }
 
+export async function reorderCleanerQueue(
+  tenantId: string,
+  cleanerId: string,
+  orderedJobIds: string[],
+  actorId: string,
+) {
+  // 1. Validate cleaner exists in tenant
+  const cleaner = await prisma.user.findFirst({
+    where: { id: cleanerId, tenantId, role: 'CLEANER' },
+  });
+  if (!cleaner) throw new AppError('Cleaner not found', 404);
+
+  // 2. Validate all job IDs exist in tenant
+  const jobs = await prisma.cleaningJob.findMany({
+    where: { id: { in: orderedJobIds }, tenantId },
+    include: { property: { include: { condominium: true } } },
+  });
+  if (jobs.length !== orderedJobIds.length) {
+    throw new AppError('One or more job IDs not found in tenant', 422);
+  }
+
+  // Build ordered sequence preserving requested order (not DB return order)
+  const jobMap = new Map(jobs.map((j) => [j.id, j]));
+  const orderedJobs = orderedJobIds.map((id) => jobMap.get(id)!);
+
+  // 3. Store order via $transaction
+  await prisma.$transaction(async (tx) => {
+    for (let i = 0; i < orderedJobIds.length; i++) {
+      await tx.cleaningAssignment.updateMany({
+        where: { jobId: orderedJobIds[i], cleanerId, tenantId },
+        data: { sortOrder: i },
+      });
+    }
+  });
+
+  // 4. Recalculate estimated_cost_brl: sum haversine distances between consecutive condominiums * R$1.80/km
+  let totalKm = 0;
+  for (let i = 0; i < orderedJobs.length - 1; i++) {
+    const a = orderedJobs[i];
+    const b = orderedJobs[i + 1];
+    totalKm += haversineKm(
+      Number(a.property.condominium.latitude),
+      Number(a.property.condominium.longitude),
+      Number(b.property.condominium.latitude),
+      Number(b.property.condominium.longitude),
+    );
+  }
+  const estimated_cost_brl = Math.round(totalKm * 1.8 * 100) / 100;
+
+  // 5. Warnings: flag RED jobs that appear after any GREEN job
+  const warnings: string[] = [];
+  let seenGreen = false;
+  for (const job of orderedJobs) {
+    if (job.urgencyLevel === 'GREEN') {
+      seenGreen = true;
+    } else if (job.urgencyLevel === 'RED' && seenGreen) {
+      warnings.push(
+        `Atenção: apt ${job.property.unitNumber} (URGENTE) ficará após apts menos urgentes`,
+      );
+    }
+  }
+
+  // 6. Push FCM after transaction (no-op if no fcmToken)
+  if (cleaner.fcmToken) {
+    await sendPush(cleaner.fcmToken, 'STAY', 'Sua rota foi atualizada', { type: 'route_updated' });
+  }
+
+  return { ordered_job_ids: orderedJobIds, estimated_cost_brl, warnings };
+}
+
 export async function cantFinish(tenantId: string, assignmentId: string, actorId: string) {
   const a = await prisma.cleaningAssignment.findFirst({
     where: { id: assignmentId, tenantId },
