@@ -61,3 +61,42 @@ dashboardRouter.get(
     }
   },
 );
+
+dashboardRouter.get(
+  '/adm',
+  ...auth,
+  requireRole('ADM', 'MANAGER', 'SUPER_ADMIN'),
+  async (req, res, next) => {
+    try {
+      res.json(await svc.getAdmDashboard(req.tenantId));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
+dashboardRouter.get(
+  '/adm/coordinator/:id',
+  ...auth,
+  requireRole('ADM', 'MANAGER', 'SUPER_ADMIN'),
+  async (req, res, next) => {
+    try {
+      res.json(await svc.getAdmCoordinatorPanel(req.tenantId, req.params.id));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
+dashboardRouter.get(
+  '/adm/alert-strip',
+  ...auth,
+  requireRole('ADM', 'MANAGER', 'SUPER_ADMIN'),
+  async (req, res, next) => {
+    try {
+      res.json(await svc.getAlertStrip(req.tenantId));
+    } catch (e) {
+      next(e);
+    }
+  },
+);

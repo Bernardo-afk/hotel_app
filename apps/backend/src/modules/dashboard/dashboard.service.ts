@@ -1,6 +1,7 @@
 import { AssignmentStatus, CleaningJobStatus, PropertyStatus, UrgencyLevel } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import PDFDocument from 'pdfkit';
+import { AppError } from '../../errors/AppError';
 
 export interface DashboardStats {
   totalJobs: number;
@@ -326,4 +327,264 @@ export async function getCoordinatorDashboard(tenantId: string): Promise<Coordin
     team_live,
     pending_count: pending,
   };
+}
+
+// ── ADM Dashboard ────────────────────────────────────────────────────────────
+
+export interface AlertItem {
+  type: 'BLOCKED_PROPERTY' | 'CRITICAL_TICKET' | 'STANDBY_TIMEOUT' | 'URGENT_UNASSIGNED';
+  severity: 'CRITICAL' | 'WARNING';
+  message: string;
+  property?: { id: string; unitNumber: string; condominium: string };
+  ticket?: { id: string; title: string };
+  job?: { id: string };
+  elapsed_minutes?: number;
+}
+
+export interface CoordinatorRow {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  isActive: boolean;
+  stats: {
+    cleaners: number;
+    apts: number;
+    cleaned: number;
+    pending: number;
+    open_tickets: number;
+    has_alerts: boolean;
+  };
+}
+
+export interface AdmDashboard {
+  metrics: {
+    total_apts_today: number;
+    completed: number;
+    urgent: number;
+    open_tickets: number;
+    active_cleaners: number;
+  };
+  coordinators: CoordinatorRow[];
+  alert_strip: AlertItem[];
+}
+
+export async function getAlertStrip(tenantId: string): Promise<{ alerts: AlertItem[] }> {
+  const now = new Date();
+  const threeHoursAgo = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+  const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+
+  const [blockedProperties, criticalTickets, standByJobs, urgentUnassignedJobs] =
+    await Promise.all([
+      prisma.property.findMany({
+        where: {
+          tenantId,
+          status: 'BLOCKED',
+          reservations: { some: { checkIn: { gt: now } } },
+        },
+        include: {
+          condominium: true,
+          reservations: {
+            where: { checkIn: { gt: now } },
+            select: { id: true },
+          },
+        },
+      }),
+      prisma.maintenanceTicket.findMany({
+        where: {
+          tenantId,
+          status: 'OPEN',
+          createdAt: { lt: threeHoursAgo },
+        },
+      }),
+      prisma.cleaningJob.findMany({
+        where: { tenantId, status: 'STAND_BY' },
+        include: {
+          property: { include: { condominium: true } },
+          eventLogs: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
+        },
+      }),
+      prisma.cleaningJob.findMany({
+        where: {
+          tenantId,
+          urgencyLevel: 'RED',
+          status: 'PENDING',
+          assignments: { none: {} },
+        },
+        include: {
+          property: { include: { condominium: true } },
+        },
+      }),
+    ]);
+
+  const alerts: AlertItem[] = [];
+
+  for (const prop of blockedProperties) {
+    const n = prop.reservations.length;
+    alerts.push({
+      type: 'BLOCKED_PROPERTY',
+      severity: 'WARNING',
+      message: `Apt ${prop.unitNumber} bloqueado — ${n} reserva(s) futura(s) afetada(s)`,
+      property: {
+        id: prop.id,
+        unitNumber: prop.unitNumber,
+        condominium: prop.condominium.name,
+      },
+    });
+  }
+
+  for (const ticket of criticalTickets) {
+    const elapsedMinutes = Math.floor((now.getTime() - ticket.createdAt.getTime()) / 60000);
+    const elapsedHours = Math.floor(elapsedMinutes / 60);
+    alerts.push({
+      type: 'CRITICAL_TICKET',
+      severity: 'CRITICAL',
+      message: `Chamado crítico #${ticket.id} sem decisão por ${elapsedHours}h`,
+      ticket: { id: ticket.id, title: ticket.description },
+      elapsed_minutes: elapsedMinutes,
+    });
+  }
+
+  for (const job of standByJobs) {
+    const lastEvent = job.eventLogs[0];
+    const lastActivity = lastEvent ? lastEvent.createdAt : job.updatedAt;
+    if (lastActivity <= twoHoursAgo) {
+      const elapsedMinutes = Math.floor((now.getTime() - lastActivity.getTime()) / 60000);
+      alerts.push({
+        type: 'STANDBY_TIMEOUT',
+        severity: 'CRITICAL',
+        message: `Apt ${job.property.unitNumber} em STAND_BY há mais de 2h`,
+        property: {
+          id: job.property.id,
+          unitNumber: job.property.unitNumber,
+          condominium: job.property.condominium.name,
+        },
+        job: { id: job.id },
+        elapsed_minutes: elapsedMinutes,
+      });
+    }
+  }
+
+  for (const job of urgentUnassignedJobs) {
+    alerts.push({
+      type: 'URGENT_UNASSIGNED',
+      severity: 'CRITICAL',
+      message: `Apt ${job.property.unitNumber} URGENTE sem empregada atribuída`,
+      property: {
+        id: job.property.id,
+        unitNumber: job.property.unitNumber,
+        condominium: job.property.condominium.name,
+      },
+      job: { id: job.id },
+    });
+  }
+
+  alerts.sort((a, b) => {
+    if (a.severity === b.severity) return 0;
+    return a.severity === 'CRITICAL' ? -1 : 1;
+  });
+
+  return { alerts };
+}
+
+export async function getAdmDashboard(tenantId: string): Promise<AdmDashboard> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const [
+    total_apts_today,
+    completedCount,
+    urgentCount,
+    openTicketsCount,
+    activeCleaners,
+    coordCleaners,
+    coordPending,
+    coordHasAlertsCount,
+    coordinatorUsers,
+    alertStripResult,
+  ] = await Promise.all([
+    prisma.cleaningJob.count({
+      where: { tenantId, scheduledDate: { gte: today, lt: tomorrow } },
+    }),
+    prisma.cleaningJob.count({
+      where: { tenantId, status: 'DONE', scheduledDate: { gte: today, lt: tomorrow } },
+    }),
+    prisma.cleaningJob.count({
+      where: { tenantId, urgencyLevel: 'RED', status: { notIn: ['DONE', 'CANCELLED'] } },
+    }),
+    prisma.maintenanceTicket.count({ where: { tenantId, status: 'OPEN' } }),
+    prisma.user.count({ where: { tenantId, role: 'CLEANER', isActive: true } }),
+    prisma.user.count({
+      where: {
+        tenantId,
+        role: 'CLEANER',
+        isActive: true,
+        assignments: { some: { tenantId, status: { in: ['NOTIFIED', 'IN_PROGRESS'] } } },
+      },
+    }),
+    prisma.cleaningJob.count({ where: { tenantId, status: { in: ['STAND_BY', 'PARTIAL'] } } }),
+    prisma.cleaningJob.count({
+      where: {
+        tenantId,
+        urgencyLevel: 'RED',
+        status: { notIn: ['DONE', 'CANCELLED'] },
+        assignments: { none: {} },
+      },
+    }),
+    prisma.user.findMany({
+      where: { tenantId, role: 'COORDINATOR' },
+      select: { id: true, name: true, avatarUrl: true, isActive: true },
+      orderBy: { name: 'asc' },
+    }),
+    getAlertStrip(tenantId),
+  ]);
+
+  const sharedStats = {
+    cleaners: coordCleaners,
+    apts: total_apts_today,
+    cleaned: completedCount,
+    pending: coordPending,
+    open_tickets: openTicketsCount,
+    has_alerts: coordHasAlertsCount > 0,
+  };
+
+  const coordinators: CoordinatorRow[] = coordinatorUsers.map((u) => ({
+    id: u.id,
+    name: u.name,
+    avatarUrl: u.avatarUrl,
+    isActive: u.isActive,
+    stats: sharedStats,
+  }));
+
+  return {
+    metrics: {
+      total_apts_today,
+      completed: completedCount,
+      urgent: urgentCount,
+      open_tickets: openTicketsCount,
+      active_cleaners: activeCleaners,
+    },
+    coordinators,
+    alert_strip: alertStripResult.alerts,
+  };
+}
+
+export async function getAdmCoordinatorPanel(
+  tenantId: string,
+  coordinatorId: string,
+): Promise<CoordinatorDashboard> {
+  const coordinator = await prisma.user.findFirst({
+    where: { id: coordinatorId, tenantId, role: 'COORDINATOR' },
+    select: { id: true },
+  });
+
+  if (!coordinator) {
+    throw new AppError('Coordinator not found', 404);
+  }
+
+  return getCoordinatorDashboard(tenantId);
 }
