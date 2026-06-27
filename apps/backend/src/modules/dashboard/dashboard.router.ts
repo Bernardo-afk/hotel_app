@@ -27,6 +27,19 @@ dashboardRouter.get(
 );
 
 dashboardRouter.get(
+  '/coordinator',
+  ...auth,
+  requireRole('COORDINATOR', 'ADM', 'MANAGER', 'SUPER_ADMIN'),
+  async (req, res, next) => {
+    try {
+      res.json(await svc.getCoordinatorDashboard(req.tenantId));
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+
+dashboardRouter.get(
   '/export-pdf',
   ...auth,
   requireRole('ADM', 'MANAGER', 'SUPER_ADMIN'),

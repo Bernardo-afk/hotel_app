@@ -1,3 +1,4 @@
+import { UrgencyLevel } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import PDFDocument from 'pdfkit';
 
@@ -131,4 +132,198 @@ export async function exportPdf(
 
     doc.end();
   });
+}
+
+// ── Coordinator Dashboard ────────────────────────────────────────────────────
+
+export interface JobCard {
+  id: string;
+  status: string;
+  urgencyLevel: string;
+  scheduledDate: string;
+  property: {
+    id: string;
+    unitNumber: string;
+    status: string;
+    condominium: { id: string; name: string };
+  };
+  reservation: {
+    checkIn: string;
+    checkOut: string;
+    guestName: string | null;
+  } | null;
+  assignments: {
+    id: string;
+    cleanerId: string;
+    status: string;
+    cleaner: { id: string; name: string };
+  }[];
+}
+
+export interface CleanerRow {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  isActive: boolean;
+  currentAssignment: {
+    assignmentId: string;
+    assignmentStatus: string;
+    job: {
+      id: string;
+      urgencyLevel: string;
+      property: {
+        unitNumber: string;
+        condominium: { name: string };
+      };
+    };
+  } | null;
+}
+
+export interface CoordinatorDashboard {
+  metrics: {
+    urgent: number;
+    attention: number;
+    completed: number;
+    pending: number;
+  };
+  jobs_by_urgency: {
+    RED: JobCard[];
+    YELLOW: JobCard[];
+    GREEN: JobCard[];
+  };
+  team_live: CleanerRow[];
+  pending_count: number;
+}
+
+export async function getCoordinatorDashboard(tenantId: string): Promise<CoordinatorDashboard> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const [urgent, attention, completed, pending, activeJobs, cleaners] = await Promise.all([
+    prisma.cleaningJob.count({
+      where: {
+        tenantId,
+        urgencyLevel: 'RED',
+        status: { notIn: ['DONE', 'CANCELLED'] },
+      },
+    }),
+    prisma.cleaningJob.count({
+      where: {
+        tenantId,
+        urgencyLevel: 'YELLOW',
+        status: { notIn: ['DONE', 'CANCELLED'] },
+      },
+    }),
+    prisma.cleaningJob.count({
+      where: {
+        tenantId,
+        status: 'DONE',
+        scheduledDate: { gte: today },
+      },
+    }),
+    prisma.cleaningJob.count({
+      where: {
+        tenantId,
+        status: { in: ['STAND_BY', 'PARTIAL'] },
+      },
+    }),
+    prisma.cleaningJob.findMany({
+      where: {
+        tenantId,
+        status: { notIn: ['DONE', 'CANCELLED'] },
+        property: { status: { not: 'BLOCKED' } },
+      },
+      include: {
+        property: { include: { condominium: true } },
+        reservation: true,
+        assignments: { include: { cleaner: true } },
+      },
+      orderBy: [{ urgencyLevel: 'asc' }, { scheduledDate: 'asc' }],
+    }),
+    prisma.user.findMany({
+      where: { tenantId, role: 'CLEANER', isActive: true },
+      include: {
+        assignments: {
+          where: { tenantId, status: { in: ['NOTIFIED', 'IN_PROGRESS'] } },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          include: {
+            job: {
+              include: { property: { include: { condominium: true } } },
+            },
+          },
+        },
+      },
+      orderBy: { name: 'asc' },
+    }),
+  ]);
+
+  const jobs_by_urgency: { RED: JobCard[]; YELLOW: JobCard[]; GREEN: JobCard[] } = {
+    RED: [],
+    YELLOW: [],
+    GREEN: [],
+  };
+
+  for (const job of activeJobs) {
+    const level = job.urgencyLevel as UrgencyLevel;
+    jobs_by_urgency[level].push({
+      id: job.id,
+      status: job.status,
+      urgencyLevel: job.urgencyLevel,
+      scheduledDate: job.scheduledDate.toISOString(),
+      property: {
+        id: job.property.id,
+        unitNumber: job.property.unitNumber,
+        status: job.property.status,
+        condominium: {
+          id: job.property.condominium.id,
+          name: job.property.condominium.name,
+        },
+      },
+      reservation: job.reservation
+        ? {
+            checkIn: job.reservation.checkIn.toISOString(),
+            checkOut: job.reservation.checkOut.toISOString(),
+            guestName: job.reservation.guestName,
+          }
+        : null,
+      assignments: job.assignments.map((a) => ({
+        id: a.id,
+        cleanerId: a.cleanerId,
+        status: a.status,
+        cleaner: { id: a.cleaner.id, name: a.cleaner.name },
+      })),
+    });
+  }
+
+  const team_live: CleanerRow[] = cleaners.map((cleaner) => {
+    const latestAssignment = cleaner.assignments[0] ?? null;
+    return {
+      id: cleaner.id,
+      name: cleaner.name,
+      avatarUrl: cleaner.avatarUrl,
+      isActive: cleaner.isActive,
+      currentAssignment: latestAssignment
+        ? {
+            assignmentId: latestAssignment.id,
+            assignmentStatus: latestAssignment.status,
+            job: {
+              id: latestAssignment.job.id,
+              urgencyLevel: latestAssignment.job.urgencyLevel,
+              property: {
+                unitNumber: latestAssignment.job.property.unitNumber,
+                condominium: { name: latestAssignment.job.property.condominium.name },
+              },
+            },
+          }
+        : null,
+    };
+  });
+
+  return {
+    metrics: { urgent, attention, completed, pending },
+    jobs_by_urgency,
+    team_live,
+    pending_count: pending,
+  };
 }
