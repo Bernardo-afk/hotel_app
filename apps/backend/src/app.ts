@@ -16,6 +16,7 @@ import { ocrRouter } from './modules/ocr/ocr.router';
 import { transportRouter } from './modules/transport/transport.router';
 import { reportsRouter } from './modules/reports/reports.router';
 import { incidentsRouter } from './modules/incidents/incidents.router';
+import { maintenanceTicketsRouter } from './modules/maintenance-tickets/maintenance-tickets.router';
 
 export function createApp() {
   const app = express();
@@ -43,6 +44,9 @@ export function createApp() {
   app.use('/', reportsRouter);
 
   app.use('/incidents', incidentsRouter);
+
+  app.use('/maintenance-tickets', maintenanceTicketsRouter);
+  app.use('/webhooks', maintenanceTicketsRouter);
 
   // modules registered in later tasks
 
