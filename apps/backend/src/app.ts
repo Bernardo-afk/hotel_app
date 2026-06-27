@@ -18,6 +18,7 @@ import { reportsRouter } from './modules/reports/reports.router';
 import { incidentsRouter } from './modules/incidents/incidents.router';
 import { maintenanceTicketsRouter } from './modules/maintenance-tickets/maintenance-tickets.router';
 import { mediaRouter } from './modules/media/media.router';
+import { dashboardRouter } from './modules/dashboard/dashboard.router';
 
 export function createApp() {
   const app = express();
@@ -51,7 +52,7 @@ export function createApp() {
 
   app.use('/media', mediaRouter);
 
-  // modules registered in later tasks
+  app.use('/dashboard', dashboardRouter);
 
   app.use(errorHandler);
   return app;
