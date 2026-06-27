@@ -325,6 +325,7 @@ model CleaningReport {
   dirtLevel        Int         // 1-5
   finishPhotoUrl   String
   finishVideoUrl   String?
+  photoUrls        String[]
   needsService     Boolean     @default(false)
   serviceUrgency   String?
   createdAt        DateTime    @default(now())

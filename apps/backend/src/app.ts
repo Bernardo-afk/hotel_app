@@ -17,6 +17,7 @@ import { transportRouter } from './modules/transport/transport.router';
 import { reportsRouter } from './modules/reports/reports.router';
 import { incidentsRouter } from './modules/incidents/incidents.router';
 import { maintenanceTicketsRouter } from './modules/maintenance-tickets/maintenance-tickets.router';
+import { mediaRouter } from './modules/media/media.router';
 
 export function createApp() {
   const app = express();
@@ -47,6 +48,8 @@ export function createApp() {
 
   app.use('/maintenance-tickets', maintenanceTicketsRouter);
   app.use('/webhooks', maintenanceTicketsRouter);
+
+  app.use('/media', mediaRouter);
 
   // modules registered in later tasks
 
