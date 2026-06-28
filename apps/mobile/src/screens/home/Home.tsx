@@ -48,7 +48,7 @@ function isSameDay(a: Date, b: Date): boolean {
 
 type RootStackParamList = {
   AptDetail: { jobId: string };
-  HomeAfterRelocation: undefined;
+  HomeAfterRelocation: { urgentJobId?: string; pausedJobId?: string } | undefined;
 };
 
 type NavProp = StackNavigationProp<RootStackParamList>;
@@ -127,7 +127,18 @@ export default function Home() {
       {hasStandBy && (
         <TouchableOpacity
           style={styles.standByBanner}
-          onPress={() => navigation.navigate('HomeAfterRelocation')}
+          onPress={() => {
+            const standByJob = jobs?.find(j => j.status === 'STAND_BY');
+            const urgentJob = jobs?.filter(j => j.status !== 'STAND_BY' && j.status !== 'DONE' && j.status !== 'CANCELLED')
+              .sort((a, b) => {
+                const order: Record<string, number> = { RED: 0, YELLOW: 1, GREEN: 2 };
+                return (order[a.urgencyLevel ?? 'GREEN'] ?? 2) - (order[b.urgencyLevel ?? 'GREEN'] ?? 2);
+              })[0];
+            navigation.navigate('HomeAfterRelocation', {
+              urgentJobId: urgentJob?.id ?? standByJob?.id ?? '',
+              pausedJobId: standByJob?.id ?? '',
+            });
+          }}
           activeOpacity={0.8}
         >
           <Text style={styles.standByText}>Realocação urgente — toque para ver</Text>

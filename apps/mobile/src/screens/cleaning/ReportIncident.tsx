@@ -49,6 +49,11 @@ export default function ReportIncident() {
   const [loading, setLoading] = useState(false);
 
   const pickPhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permissão necessária', 'Precisamos de acesso à câmera para tirar fotos.');
+      return;
+    }
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: 'images' as ImagePicker.MediaType,
       quality: 0.8,
@@ -80,10 +85,12 @@ export default function ReportIncident() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       navigation.goBack();
-    } catch (err: any) {
+    } catch (err: unknown) {
       Alert.alert(
         'Erro',
-        err?.response?.data?.message ?? 'Não foi possível salvar a ocorrência.',
+        (err as { response?: { data?: { message?: string } }; message?: string }).response?.data?.message
+          ?? (err as { message?: string }).message
+          ?? 'Não foi possível salvar a ocorrência.',
       );
     } finally {
       setLoading(false);

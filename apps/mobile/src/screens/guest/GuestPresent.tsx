@@ -52,10 +52,12 @@ export default function GuestPresent() {
     try {
       await api.post(`/assignments/${assignmentId}/guest-present`);
       setNotified(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       Alert.alert(
         'Erro',
-        err?.response?.data?.message ?? 'Não foi possível notificar o coordenador.',
+        (err as { response?: { data?: { message?: string } }; message?: string }).response?.data?.message
+          ?? (err as { message?: string }).message
+          ?? 'Não foi possível notificar o coordenador.',
       );
     } finally {
       setLoading(false);

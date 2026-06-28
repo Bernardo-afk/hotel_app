@@ -65,7 +65,7 @@ export default function Profile() {
         style: 'destructive',
         onPress: () => {
           logout();
-          navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+          setTimeout(() => navigation.reset({ index: 0, routes: [{ name: 'Login' }] }), 0);
         },
       },
     ]);

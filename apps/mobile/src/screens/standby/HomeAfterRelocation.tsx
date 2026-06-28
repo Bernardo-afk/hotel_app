@@ -16,7 +16,7 @@ import { api } from '../../api/axios';
 import type { CleaningJob } from '../../types';
 
 type RootStackParamList = {
-  HomeAfterRelocation: { urgentJobId: string; pausedJobId: string };
+  HomeAfterRelocation: { urgentJobId?: string; pausedJobId?: string } | undefined;
   DoorWarning: { assignmentId: string; jobId: string };
 };
 
@@ -29,7 +29,8 @@ type HomeAfterRelocationRouteProp = RouteProp<
 export default function HomeAfterRelocation() {
   const navigation = useNavigation<NavProp>();
   const route = useRoute<HomeAfterRelocationRouteProp>();
-  const { urgentJobId, pausedJobId } = route.params;
+  const urgentJobId = route.params?.urgentJobId;
+  const pausedJobId = route.params?.pausedJobId;
 
   const { data: jobs, isLoading } = useQuery<CleaningJob[]>({
     queryKey: ['cleaning-jobs'],

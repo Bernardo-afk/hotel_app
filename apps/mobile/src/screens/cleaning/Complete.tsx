@@ -55,6 +55,11 @@ export default function Complete() {
   const [photoError, setPhotoError] = useState(false);
 
   const pickPhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permissão necessária', 'Precisamos de acesso à câmera para tirar fotos.');
+      return;
+    }
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: 'images' as ImagePicker.MediaType,
       quality: 0.8,
@@ -113,10 +118,11 @@ export default function Complete() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       navigation.navigate('WellDone', { assignmentId, jobId });
-    } catch (err: any) {
+    } catch (err: unknown) {
       Alert.alert(
         'Erro',
-        err?.response?.data?.message ?? 'Não foi possível concluir a limpeza.',
+        (err as { response?: { data?: { message?: string } }; message?: string }).response?.data?.message
+          ?? 'Não foi possível concluir a limpeza.',
       );
     } finally {
       setLoading(false);
@@ -286,6 +292,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     backgroundColor: '#F9FAFB',
+    minHeight: 48,
   },
   chipSelected: { backgroundColor: '#0D7377', borderColor: '#0D7377' },
   chipText: { fontSize: 14, color: '#374151' },
@@ -348,6 +355,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     backgroundColor: '#F9FAFB',
+    minHeight: 48,
   },
   serviceChipSelected: { backgroundColor: '#0D7377', borderColor: '#0D7377' },
   serviceChipText: { fontSize: 15, color: '#374151' },

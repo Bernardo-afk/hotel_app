@@ -37,10 +37,12 @@ export default function DoorWarning() {
         jobId,
         startedAt: new Date().toISOString(),
       });
-    } catch (err: any) {
-      const status: number | undefined = err?.response?.status;
+    } catch (err: unknown) {
+      const status: number | undefined = (err as { response?: { status?: number } }).response?.status;
       const message: string =
-        err?.response?.data?.message ?? err?.message ?? '';
+        (err as { response?: { data?: { message?: string } }; message?: string }).response?.data?.message
+          ?? (err as { message?: string }).message
+          ?? '';
       if (status === 409 || message.toLowerCase().includes('guest')) {
         navigation.navigate('GuestPresent', { assignmentId, jobId });
       } else {

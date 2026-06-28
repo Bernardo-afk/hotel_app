@@ -113,10 +113,12 @@ export default function InProgress() {
             try {
               await api.post(`/assignments/${assignmentId}/cant-finish`);
               navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
-            } catch (err: any) {
+            } catch (err: unknown) {
               Alert.alert(
                 'Erro',
-                err?.response?.data?.message ?? 'Erro ao cancelar.',
+                (err as { response?: { data?: { message?: string } }; message?: string }).response?.data?.message
+                  ?? (err as { message?: string }).message
+                  ?? 'Erro ao cancelar.',
               );
             } finally {
               setCantFinishLoading(false);
