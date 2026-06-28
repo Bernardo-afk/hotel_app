@@ -1,10 +1,17 @@
 {
   "name": "stay",
   "private": true,
-  "workspaces": ["apps/*"],
-  "engines": { "node": ">=20" },
+  "workspaces": [
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev:backend": "npm run dev -w backend",
     "test:backend": "npm test -w backend"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2"
   }
 }
