@@ -4,9 +4,11 @@ import { api } from '../../api/axios';
 import Sidebar from './components/Sidebar';
 import AlertStrip from './components/AlertStrip';
 import CoordinatorRow from './components/CoordinatorRow';
-
-// Lazy imports for other tabs (W5 will create them)
-// For now render placeholders
+import Tickets from './Tickets';
+import Reimbursements from './Reimbursements';
+import Properties from './Properties';
+import Team from './Team';
+import MediaDashboard from './MediaDashboard';
 
 interface AdmMetrics {
   total_apts_today: number;
@@ -135,15 +137,13 @@ export default function AdmDashboard() {
       );
     }
 
-    // Other tabs — placeholders for W5
-    const PAGE_LABELS: Record<string, string> = {
-      tickets: 'Chamados',
-      reimbursements: 'Reembolsos',
-      properties: 'Propriedades',
-      team: 'Equipe',
-      media: 'Mídias',
-    };
-    return <ComingSoon name={PAGE_LABELS[activePage] ?? activePage} />;
+    // Feature tabs
+    if (activePage === 'tickets') return <Tickets />;
+    if (activePage === 'reimbursements') return <Reimbursements />;
+    if (activePage === 'properties') return <Properties />;
+    if (activePage === 'team') return <Team />;
+    if (activePage === 'media') return <MediaDashboard />;
+    return <ComingSoon name={activePage} />;
   }
 
   return (
