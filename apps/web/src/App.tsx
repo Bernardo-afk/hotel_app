@@ -3,13 +3,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import CoordinatorDashboard from './pages/coordinator/Dashboard';
+import AdmDashboard from './pages/adm/Dashboard';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 10_000 } },
 });
-
-// Lazy placeholders (W3/W4/W5 will fill these)
-const AdmDashboard = () => <div className="p-8 text-gray-500">ADM Dashboard (em construção)</div>;
 
 export default function App() {
   return (
