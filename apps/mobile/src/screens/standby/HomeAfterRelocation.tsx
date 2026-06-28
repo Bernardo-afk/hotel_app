@@ -32,7 +32,7 @@ export default function HomeAfterRelocation() {
   const { urgentJobId, pausedJobId } = route.params;
 
   const { data: jobs, isLoading } = useQuery<CleaningJob[]>({
-    queryKey: ['jobs'],
+    queryKey: ['cleaning-jobs'],
     queryFn: () => api.get('/cleaning-jobs').then((r) => r.data),
   });
 
