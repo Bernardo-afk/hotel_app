@@ -19,7 +19,7 @@ import { api } from '../../api/axios';
 import type { IncidentType } from '../../types';
 
 type RootStackParamList = {
-  ReportIncident: { type: IncidentType; jobId: string; assignmentId: string };
+  ReportIncident: { type: IncidentType; jobId: string; assignmentId: string; unitNumber: string };
 };
 
 type NavProp = StackNavigationProp<RootStackParamList>;
@@ -41,7 +41,7 @@ const INCIDENT_OPTIONS: IncidentOption[] = [
 export default function ReportIncident() {
   const navigation = useNavigation<NavProp>();
   const route = useRoute<ReportIncidentRouteProp>();
-  const { type: initialType, jobId } = route.params;
+  const { type: initialType, jobId, unitNumber } = route.params;
 
   const [selectedType, setSelectedType] = useState<IncidentType>(initialType);
   const [description, setDescription] = useState('');
@@ -103,7 +103,7 @@ export default function ReportIncident() {
         >
           <Text style={styles.backArrow}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Nova ocorrência</Text>
+        <Text style={styles.headerTitle}>Nova ocorrência — Apto {unitNumber}</Text>
         <View style={styles.headerRight} />
       </View>
 
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
   typeCard: {
     width: '48%',
     borderRadius: 12,
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: '#E5E7EB',
     backgroundColor: '#F9FAFB',
     padding: 14,
@@ -227,6 +227,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   typeCardSelected: {
+    borderWidth: 2,
     borderColor: '#0D7377',
     backgroundColor: '#F0FAFA',
   },

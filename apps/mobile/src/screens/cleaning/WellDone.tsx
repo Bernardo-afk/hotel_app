@@ -37,7 +37,7 @@ export default function WellDone() {
 
   const doneToday = doneJobs?.length ?? streakCount;
   const totalToday = Math.max(doneToday, streakCount);
-  const progressPct = totalToday > 0 ? Math.min((doneToday / totalToday) * 100, 100) : 0;
+  const progressPct = !doneJobs ? 0 : (totalToday > 0 ? Math.min((doneToday / totalToday) * 100, 100) : 0);
 
   return (
     <SafeAreaView style={styles.container}>

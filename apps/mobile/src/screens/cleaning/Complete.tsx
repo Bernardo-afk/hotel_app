@@ -215,7 +215,7 @@ export default function Complete() {
               <View style={styles.mediaPlaceholder}>
                 <Text style={styles.mediaIcon}>🎥</Text>
                 <Text style={styles.mediaLabel}>Adicionar vídeo</Text>
-                <Text style={styles.mediaTip}>Grave um vídeo rápido</Text>
+                <Text style={styles.mediaTip}>Grave um vídeo rápido do apt</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -255,7 +255,7 @@ export default function Complete() {
           activeOpacity={0.85}
         >
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>Enviando...</Text>
           ) : (
             <Text style={styles.submitButtonText}>Enviar e concluir ✓</Text>
           )}

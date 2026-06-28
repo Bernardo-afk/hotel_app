@@ -18,7 +18,7 @@ import type { CleaningJob, IncidentType, UrgencyLevel } from '../../types';
 
 type RootStackParamList = {
   InProgress: { assignmentId: string; jobId: string; startedAt: string };
-  ReportIncident: { type: IncidentType; jobId: string; assignmentId: string };
+  ReportIncident: { type: IncidentType; jobId: string; assignmentId: string; unitNumber: string };
   Complete: { assignmentId: string; jobId: string };
   Main: undefined;
 };
@@ -170,6 +170,7 @@ export default function InProgress() {
                   type: btn.type,
                   jobId,
                   assignmentId,
+                  unitNumber: job?.property.unitNumber ?? '',
                 })
               }
               activeOpacity={0.75}
