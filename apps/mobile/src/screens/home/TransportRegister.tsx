@@ -54,13 +54,10 @@ export default function TransportRegister() {
   const [submitting, setSubmitting] = useState(false);
 
   const handlePickPhoto = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      const camera = await ImagePicker.requestCameraPermissionsAsync();
-      if (!camera.granted) {
-        Alert.alert('Permissão negada', 'Permita o acesso à câmera ou galeria nas configurações.');
-        return;
-      }
+      Alert.alert('Permissão negada', 'Permita o acesso à câmera nas configurações.');
+      return;
     }
 
     const result = await ImagePicker.launchCameraAsync({
@@ -115,7 +112,7 @@ export default function TransportRegister() {
         destinationName: params.destinationName,
         destinationLat: params.destinationLat ?? 0,
         destinationLng: params.destinationLng ?? 0,
-        ocrConfidence: ocrConfidence ?? undefined,
+        ocrConfidence: ocrConfidence ?? null,
       });
       navigation.navigate('DoorWarning', {
         assignmentId: params.assignmentId ?? '',
@@ -279,6 +276,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#D1D5DB',
     backgroundColor: '#fff',
+    minHeight: 48,
   },
   chipSelected: { borderColor: '#0D7377', backgroundColor: '#0D7377' },
   chipText: { fontSize: 14, color: '#374151', fontWeight: '500' },
