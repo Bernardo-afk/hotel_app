@@ -3,6 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api/axios';
 import AptCard from './components/AptCard';
 import CleanerRowComp from './components/CleanerRow';
+import AssignmentModal from './components/AssignmentModal';
+import AlertModal from './components/AlertModal';
+import PendingSection from './components/PendingSection';
+import CleanerQueue from './components/CleanerQueue';
 
 // --- Types ---
 interface JobCard {
@@ -99,7 +103,14 @@ export default function CoordinatorDashboard() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterChip>('ALL');
   const [selectedJob, setSelectedJob] = useState<JobCard | null>(null);
-  // W3 will add: alertJob state + selectedCleaner state for modals
+  const [alertJob, setAlertJob] = useState<{
+    id: string;
+    status: string;
+    urgencyLevel: string;
+    property: { unitNumber: string; condominium: { name: string } };
+    assignments: { cleaner: { name: string } }[];
+  } | null>(null);
+  const [selectedCleaner, setSelectedCleaner] = useState<CleanerRowData | null>(null);
 
   const { data, isLoading } = useCoordinatorDashboard();
 
@@ -210,7 +221,16 @@ export default function CoordinatorDashboard() {
             onJobClick={setSelectedJob}
             urgency="RED"
           />
-          {/* PendingSection (I1) — placeholder for W3 */}
+          {data && (
+            <PendingSection
+              jobs={[
+                ...data.jobs_by_urgency.RED,
+                ...data.jobs_by_urgency.YELLOW,
+                ...data.jobs_by_urgency.GREEN,
+              ].filter(j => ['STAND_BY', 'PARTIAL'].includes(j.status))}
+              onResolve={job => setAlertJob(job)}
+            />
+          )}
           <JobSection
             title="Atenção"
             jobs={filteredJobs.YELLOW}
@@ -230,7 +250,7 @@ export default function CoordinatorDashboard() {
           <h2 className="text-sm font-semibold text-gray-500 mb-3">EQUIPE AO VIVO</h2>
           <div className="space-y-2">
             {filteredCleaners.map(c => (
-              <CleanerRowComp key={c.id} cleaner={c} onClick={() => { /* W3: open cleaner queue for c */ }} />
+              <CleanerRowComp key={c.id} cleaner={c} onClick={() => setSelectedCleaner(c)} />
             ))}
             {filteredCleaners.length === 0 && (
               <p className="text-sm text-gray-400">Nenhuma empregada encontrada</p>
@@ -239,27 +259,31 @@ export default function CoordinatorDashboard() {
         </div>
       </div>
 
-      {/* Modals — placeholders; W3 will implement real components */}
       {selectedJob && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-          onClick={() => setSelectedJob(null)}
-        >
-          <div
-            className="bg-white rounded-xl p-6 shadow-xl"
-            onClick={e => e.stopPropagation()}
-          >
-            <p className="text-gray-600">
-              Modal de atribuição — Apt {selectedJob.property.unitNumber}
-            </p>
-            <button
-              onClick={() => setSelectedJob(null)}
-              className="mt-4 px-4 py-2 bg-gray-100 rounded"
-            >
-              Fechar
-            </button>
-          </div>
-        </div>
+        <AssignmentModal
+          job={selectedJob}
+          onClose={() => setSelectedJob(null)}
+          onAssigned={() => setSelectedJob(null)}
+        />
+      )}
+      {alertJob && (
+        <AlertModal
+          job={alertJob}
+          situation={
+            alertJob.status === 'STAND_BY'
+              ? 'Hóspede presente — aguardando saída'
+              : 'Empregada não finalizou a limpeza'
+          }
+          elapsedMinutes={30}
+          onClose={() => setAlertJob(null)}
+        />
+      )}
+      {selectedCleaner && (
+        <CleanerQueue
+          cleaner={{ id: selectedCleaner.id, name: selectedCleaner.name }}
+          jobs={[]}
+          onClose={() => setSelectedCleaner(null)}
+        />
       )}
     </div>
   );
