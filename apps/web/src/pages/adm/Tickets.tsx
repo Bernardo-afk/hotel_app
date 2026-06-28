@@ -40,6 +40,8 @@ export default function Tickets() {
       const params: Record<string, string> = {};
       if (filter === 'OPEN') params.status = 'OPEN';
       if (filter === 'WONT_FIX') params.status = 'WONT_FIX';
+      if (filter === 'URGENT') params.urgency = 'URGENT';
+      if (filter === 'MEDIUM') params.urgency = 'MEDIUM';
       return api.get('/maintenance-tickets', { params }).then(r => r.data);
     },
   });
