@@ -5,9 +5,11 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "ts-node-dev --respawn src/server.ts",
+    "dev": "ts-node-dev --files --respawn src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
+    "start:prod": "node dist/server.js",
+    "postinstall": "prisma generate",
     "test": "jest --runInBand",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
